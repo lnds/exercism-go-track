@@ -4,18 +4,18 @@ import "sync"
 
 type Account struct {
 	open    bool
-	balance int64
+	balance int
 	sync.Mutex
 }
 
-func Open(amount int64) *Account {
+func Open(amount int) *Account {
 	if amount < 0 {
 		return nil
 	}
 	return &Account{balance: amount, open: true}
 }
 
-func (a *Account) Deposit(amount int64) (newBalance int64, ok bool) {
+func (a *Account) Deposit(amount int) (newBalance int, ok bool) {
 	a.Lock()
 	defer a.Unlock()
 	if !a.open {
@@ -28,14 +28,14 @@ func (a *Account) Deposit(amount int64) (newBalance int64, ok bool) {
 	return a.balance, ok
 }
 
-func (a *Account) Balance() (int64, bool) {
+func (a *Account) Balance() (int, bool) {
 	if !a.open {
 		return 0, false
 	}
 	return a.balance, a.open
 }
 
-func (a *Account) Close() (payout int64, ok bool) {
+func (a *Account) Close() (payout int, ok bool) {
 	a.Lock()
 	defer a.Unlock()
 	if a.open {
