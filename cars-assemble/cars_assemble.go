@@ -5,7 +5,7 @@ const CARS = 221.0
 // CalculateProductionRatePerHour for the assembly line, taking into account
 // its success rate
 func CalculateProductionRatePerHour(speed int) float64 {
-	return CARS*speed * successRate(speed)
+	return CARS * float64(speed) * successRate(speed)
 }
 
 // CalculateProductionRatePerMinute describes how many working items are
