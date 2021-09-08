@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type Entry struct {
@@ -55,39 +56,22 @@ func FormatLedger(currency string, locale string, entries []Entry) (string, erro
 	})
 	for i, et := range entriesCopy {
 		go func(i int, entry Entry) {
-			if len(entry.Date) != 10 {
+			// step 4: pasrse date
+			d, err := formatDate(entry.Date, locale)
+
+			if err != nil {
 				co <- struct {
 					i int
 					s string
 					e error
-				}{e: errors.New("")}
+				}{e: err}
 			}
-			d1, d2, d3, d4, d5 := entry.Date[0:4], entry.Date[4], entry.Date[5:7], entry.Date[7], entry.Date[8:10]
-			if d2 != '-' {
-				co <- struct {
-					i int
-					s string
-					e error
-				}{e: errors.New("")}
-			}
-			if d4 != '-' {
-				co <- struct {
-					i int
-					s string
-					e error
-				}{e: errors.New("")}
-			}
+
 			de := entry.Description
 			if len(de) > 25 {
 				de = de[:22] + "..."
 			} else {
 				de = de + strings.Repeat(" ", 25-len(de))
-			}
-			var d string
-			if locale == "nl-NL" {
-				d = d5 + "-" + d3 + "-" + d1
-			} else if locale == "en-US" {
-				d = d3 + "/" + d5 + "/" + d1
 			}
 			negative := false
 			cents := entry.Change
@@ -193,7 +177,7 @@ func FormatLedger(currency string, locale string, entries []Entry) (string, erro
 				i int
 				s string
 				e error
-			}{i: i, s: d + strings.Repeat(" ", 10-len(d)) + " | " + de + " | " +
+			}{i: i, s: fmt.Sprintf("%10s", d) + " | " + de + " | " +
 				strings.Repeat(" ", 13-al) + a + "\n"}
 		}(i, et)
 	}
@@ -219,5 +203,20 @@ func header(locale string) (string, error) {
 		return fmt.Sprintf("%-10s | %-25s | %s\n", "Date", "Description", "Change"), nil
 	default:
 		return "", errors.New("")
+	}
+}
+
+func formatDate(date, locale string) (string, error) {
+	t, err := time.Parse("2006-01-02", date)
+	if err != nil {
+		return date, err
+	}
+	switch locale {
+	case "nl-NL":
+		return t.Format("02-01-2006"), nil
+	case "en-US":
+		return t.Format("01/02/2006"), nil
+	default:
+		return date, errors.New("date for localer not supported")
 	}
 }
