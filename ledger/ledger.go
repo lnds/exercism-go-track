@@ -51,25 +51,23 @@ func FormatLedger(currency string, locale string, entries []Entry) (string, erro
 	// step 8 remove parallelism
 	for _, entry := range entriesCopy {
 		// step 4: pasrse date
-		d, err := formatDate(entry.Date, locale)
+		date, err := formatDate(entry.Date, locale)
+		if err != nil {
+			return "", err
+		}
+		// step 6: format change
+		change, err := formatChange(entry.Change, currency, locale)
 		if err != nil {
 			return "", err
 		}
 
 		// step 5: format description
-		de := entry.Description
-		if len(de) > 25 {
-			de = de[:22] + "..."
-		}
-		de = fmt.Sprintf("%-25s", de)
-
-		// step 6: format change
-		a, err := formatChange(entry.Change, currency, locale)
-		if err != nil {
-			return "", err
+		description := entry.Description
+		if len(description) > 25 {
+			description = description[:22] + "..."
 		}
 
-		s += fmt.Sprintf("%-10s | %s | %13s\n", d, de, a)
+		s += fmt.Sprintf("%-10s | %-25s | %13s\n", date, description, change)
 	}
 
 	return s, nil
