@@ -3,7 +3,6 @@ package ledger
 import (
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -74,101 +73,14 @@ func FormatLedger(currency string, locale string, entries []Entry) (string, erro
 			}
 			de = fmt.Sprintf("%-25s", de)
 
-			negative := false
-			cents := entry.Change
-			if cents < 0 {
-				cents = cents * -1
-				negative = true
-			}
-			var a string
-			if locale == "nl-NL" {
-				if currency == "EUR" {
-					a += "€"
-				} else if currency == "USD" {
-					a += "$"
-				} else {
-					co <- struct {
-						i int
-						s string
-						e error
-					}{e: errors.New("")}
-				}
-				a += " "
-				centsStr := strconv.Itoa(cents)
-				switch len(centsStr) {
-				case 1:
-					centsStr = "00" + centsStr
-				case 2:
-					centsStr = "0" + centsStr
-				}
-				rest := centsStr[:len(centsStr)-2]
-				var parts []string
-				for len(rest) > 3 {
-					parts = append(parts, rest[len(rest)-3:])
-					rest = rest[:len(rest)-3]
-				}
-				if len(rest) > 0 {
-					parts = append(parts, rest)
-				}
-				for i := len(parts) - 1; i >= 0; i-- {
-					a += parts[i] + "."
-				}
-				a = a[:len(a)-1]
-				a += ","
-				a += centsStr[len(centsStr)-2:]
-				if negative {
-					a += "-"
-				} else {
-					a += " "
-				}
-			} else if locale == "en-US" {
-				if negative {
-					a += "("
-				}
-				if currency == "EUR" {
-					a += "€"
-				} else if currency == "USD" {
-					a += "$"
-				} else {
-					co <- struct {
-						i int
-						s string
-						e error
-					}{e: errors.New("")}
-				}
-				centsStr := strconv.Itoa(cents)
-				switch len(centsStr) {
-				case 1:
-					centsStr = "00" + centsStr
-				case 2:
-					centsStr = "0" + centsStr
-				}
-				rest := centsStr[:len(centsStr)-2]
-				var parts []string
-				for len(rest) > 3 {
-					parts = append(parts, rest[len(rest)-3:])
-					rest = rest[:len(rest)-3]
-				}
-				if len(rest) > 0 {
-					parts = append(parts, rest)
-				}
-				for i := len(parts) - 1; i >= 0; i-- {
-					a += parts[i] + ","
-				}
-				a = a[:len(a)-1]
-				a += "."
-				a += centsStr[len(centsStr)-2:]
-				if negative {
-					a += ")"
-				} else {
-					a += " "
-				}
-			} else {
+			// step 6: format change
+			a, err := formatChange(entry.Change, currency, locale)
+			if err != nil {
 				co <- struct {
 					i int
 					s string
 					e error
-				}{e: errors.New("")}
+				}{e: err}
 			}
 			var al int
 			for range a {
@@ -220,4 +132,55 @@ func formatDate(date, locale string) (string, error) {
 	default:
 		return date, errors.New("date for localer not supported")
 	}
+}
+
+func formatChange(change int, currency, locale string) (string, error) {
+
+	var curSymbol string
+	switch currency {
+	case "EUR":
+		curSymbol = "€"
+	case "USD":
+		curSymbol = "$"
+	default:
+		return "", errors.New("invalid currency")
+	}
+
+	negative := false
+	cents := change
+	if cents < 0 {
+		cents = cents * -1
+		negative = true
+	}
+
+	switch locale {
+	case "nl-NL":
+		centStr := formatCents(cents, ".", ",", 2)
+		if negative {
+			return fmt.Sprintf("%s %s-", curSymbol, centStr), nil
+		}
+		return fmt.Sprintf("%s %s ", curSymbol, centStr), nil
+	case "en-US":
+		centStr := formatCents(cents, ",", ".", 3)
+		if negative {
+			return fmt.Sprintf("(%s%s)", curSymbol, centStr), nil
+		}
+		return fmt.Sprintf(" %s%s ", curSymbol, centStr), nil
+	default:
+		return "", nil
+	}
+}
+
+func formatCents(cents int, sep, point string, decs int) string {
+	centsStr := fmt.Sprintf("%0*d", decs, cents)
+	rest := centsStr[:len(centsStr)-2]
+	var parts []string
+	for len(rest) > 3 {
+		parts = append([]string{rest[len(rest)-3:]}, parts...)
+		rest = rest[:len(rest)-3]
+	}
+	if len(rest) > 0 {
+		parts = append([]string{rest}, parts...)
+	}
+	return fmt.Sprintf("%s%s%s", strings.Join(parts, sep), point, centsStr[len(centsStr)-2:])
 }
