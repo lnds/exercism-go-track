@@ -81,17 +81,15 @@ func FormatLedger(currency string, locale string, entries []Entry) (string, erro
 					s string
 					e error
 				}{e: err}
+			} else {
+				// step 7: format line
+				co <- struct {
+					i int
+					s string
+					e error
+				}{i: i, s: fmt.Sprintf("%-10s | %s | %13s\n", d, de, a)}
 			}
-			var al int
-			for range a {
-				al++
-			}
-			co <- struct {
-				i int
-				s string
-				e error
-			}{i: i, s: fmt.Sprintf("%10s", d) + " | " + de + " | " +
-				strings.Repeat(" ", 13-al) + a + "\n"}
+
 		}(i, et)
 	}
 	ss := make([]string, len(entriesCopy))
