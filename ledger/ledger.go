@@ -47,62 +47,31 @@ func FormatLedger(currency string, locale string, entries []Entry) (string, erro
 	if err != nil {
 		return s, err
 	}
-	// Parallelism, always a great idea
-	co := make(chan struct {
-		i int
-		s string
-		e error
-	})
-	for i, et := range entriesCopy {
-		go func(i int, entry Entry) {
-			// step 4: pasrse date
-			d, err := formatDate(entry.Date, locale)
 
-			if err != nil {
-				co <- struct {
-					i int
-					s string
-					e error
-				}{e: err}
-			}
-
-			// step 5: format description
-			de := entry.Description
-			if len(de) > 25 {
-				de = de[:22] + "..."
-			}
-			de = fmt.Sprintf("%-25s", de)
-
-			// step 6: format change
-			a, err := formatChange(entry.Change, currency, locale)
-			if err != nil {
-				co <- struct {
-					i int
-					s string
-					e error
-				}{e: err}
-			} else {
-				// step 7: format line
-				co <- struct {
-					i int
-					s string
-					e error
-				}{i: i, s: fmt.Sprintf("%-10s | %s | %13s\n", d, de, a)}
-			}
-
-		}(i, et)
-	}
-	ss := make([]string, len(entriesCopy))
-	for range entriesCopy {
-		v := <-co
-		if v.e != nil {
-			return "", v.e
+	// step 8 remove parallelism
+	for _, entry := range entriesCopy {
+		// step 4: pasrse date
+		d, err := formatDate(entry.Date, locale)
+		if err != nil {
+			return "", err
 		}
-		ss[v.i] = v.s
+
+		// step 5: format description
+		de := entry.Description
+		if len(de) > 25 {
+			de = de[:22] + "..."
+		}
+		de = fmt.Sprintf("%-25s", de)
+
+		// step 6: format change
+		a, err := formatChange(entry.Change, currency, locale)
+		if err != nil {
+			return "", err
+		}
+
+		s += fmt.Sprintf("%-10s | %s | %13s\n", d, de, a)
 	}
-	for i := 0; i < len(entriesCopy); i++ {
-		s += ss[i]
-	}
+
 	return s, nil
 }
 
