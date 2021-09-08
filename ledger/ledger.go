@@ -3,6 +3,7 @@ package ledger
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 )
@@ -13,36 +14,32 @@ type Entry struct {
 	Change      int // in cents
 }
 
+var currencies = map[string]string{
+	"EUR": "€",
+	"USD": "$",
+}
+
 func FormatLedger(currency string, locale string, entries []Entry) (string, error) {
+
+	if _, ok := currencies[currency]; !ok {
+		return "", errors.New("invalid curency")
+	}
+
 	var entriesCopy []Entry
 	// step 1 remove loop
 	entriesCopy = append(entriesCopy, entries...)
 
-	if len(entries) == 0 {
-		if _, err := FormatLedger(currency, "en-US", []Entry{{Date: "2014-01-01", Description: "", Change: 0}}); err != nil {
-			return "", err
-		}
-	}
-
 	// step 2 remove m1 & m2 maps
-	es := entriesCopy
-	for len(es) > 1 {
-		first, rest := es[0], es[1:]
-		success := false
-		for !success {
-			success = true
-			for i, e := range rest {
-				if e.Date < first.Date || e.Description < first.Description || e.Change < first.Change {
-					es[0], es[i+1] = es[i+1], es[0]
-					success = false
-				}
-			}
+	sort.Slice(entriesCopy, func(i, j int) bool {
+		if entriesCopy[i].Date < entriesCopy[j].Date {
+			return true
+		} else if entriesCopy[i].Description < entriesCopy[j].Description {
+			return true
 		}
-		es = es[1:]
-	}
+		return entriesCopy[i].Change < entriesCopy[j].Change
+	})
 
 	// step 3: initialization of s based on locale refactored in header function
-	var s string
 	s, err := header(locale)
 	if err != nil {
 		return s, err
@@ -80,7 +77,7 @@ func header(locale string) (string, error) {
 	case "en-US":
 		return fmt.Sprintf("%-10s | %-25s | %s\n", "Date", "Description", "Change"), nil
 	default:
-		return "", errors.New("")
+		return "", errors.New("no header")
 	}
 }
 
@@ -101,13 +98,8 @@ func formatDate(date, locale string) (string, error) {
 
 func formatChange(change int, currency, locale string) (string, error) {
 
-	var curSymbol string
-	switch currency {
-	case "EUR":
-		curSymbol = "€"
-	case "USD":
-		curSymbol = "$"
-	default:
+	curSymbol, ok := currencies[currency]
+	if !ok {
 		return "", errors.New("invalid currency")
 	}
 
@@ -132,7 +124,7 @@ func formatChange(change int, currency, locale string) (string, error) {
 		}
 		return fmt.Sprintf(" %s%s ", curSymbol, centStr), nil
 	default:
-		return "", nil
+		return "", errors.New("invalid locale")
 	}
 }
 
