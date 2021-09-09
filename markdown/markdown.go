@@ -12,11 +12,11 @@ func Render(markdown string) string {
 	header := 0
 	// step 2: functions for strong and em
 	markdown = strong(markdown)
-	markdown = em(markdown)
+	markdown = emphasis(markdown)
 	pos := 0
 	list := 0
 	html := ""
-	for {
+	for pos < len(markdown) {
 		char := markdown[pos]
 		// step 1 change if with switch
 		switch char {
@@ -47,11 +47,9 @@ func Render(markdown string) string {
 			}
 			pos++
 			continue
-		}
-		html += string(char)
-		pos++
-		if pos >= len(markdown) {
-			break
+		default:
+			html += string(char)
+			pos++
 		}
 	}
 	if header > 0 {
@@ -69,7 +67,11 @@ func strong(markdown string) string {
 	return strings.Replace(result, "__", "</strong>", 1)
 }
 
-func em(markdown string) string {
+func emphasis(markdown string) string {
 	result := strings.Replace(markdown, "_", "<em>", 1)
 	return strings.Replace(result, "_", "</em>", 1)
+}
+
+func encloseWithTag(text, tag string) string {
+	return fmt.Sprintf("<%s>%s</%s", tag, text, tag)
 }
