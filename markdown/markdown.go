@@ -19,7 +19,9 @@ func Render(markdown string) string {
 	html := ""
 	for {
 		char := markdown[pos]
-		if char == '#' {
+		// step 1 change if with switch
+		switch char {
+		case '#':
 			for char == '#' {
 				header++
 				pos++
@@ -28,8 +30,7 @@ func Render(markdown string) string {
 			html += fmt.Sprintf("<h%d>", header)
 			pos++
 			continue
-		}
-		if char == '*' {
+		case '*':
 			if list == 0 {
 				html += "<ul>"
 			}
@@ -37,8 +38,7 @@ func Render(markdown string) string {
 			list++
 			pos += 2
 			continue
-		}
-		if char == '\n' {
+		case '\n':
 			if list > 0 {
 				html += "</li>"
 			}
