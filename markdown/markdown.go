@@ -58,7 +58,7 @@ func Render(markdown string) string {
 	if list > 0 {
 		return html + "</li></ul>"
 	}
-	return "<p>" + html + "</p>"
+	return encloseWithTag(html, "p")
 
 }
 
@@ -73,5 +73,5 @@ func emphasis(markdown string) string {
 }
 
 func encloseWithTag(text, tag string) string {
-	return fmt.Sprintf("<%s>%s</%s", tag, text, tag)
+	return fmt.Sprintf("<%s>%s</%s>", tag, text, tag)
 }
