@@ -10,10 +10,9 @@ import (
 // Render translates markdown to HTML
 func Render(markdown string) string {
 	header := 0
-	markdown = strings.Replace(markdown, "__", "<strong>", 1)
-	markdown = strings.Replace(markdown, "__", "</strong>", 1)
-	markdown = strings.Replace(markdown, "_", "<em>", 1)
-	markdown = strings.Replace(markdown, "_", "</em>", 1)
+	// step 2: functions for strong and em
+	markdown = strong(markdown)
+	markdown = em(markdown)
 	pos := 0
 	list := 0
 	html := ""
@@ -63,4 +62,14 @@ func Render(markdown string) string {
 	}
 	return "<p>" + html + "</p>"
 
+}
+
+func strong(markdown string) string {
+	result := strings.Replace(markdown, "__", "<strong>", 1)
+	return strings.Replace(result, "__", "</strong>", 1)
+}
+
+func em(markdown string) string {
+	result := strings.Replace(markdown, "_", "<em>", 1)
+	return strings.Replace(result, "_", "</em>", 1)
 }
