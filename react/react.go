@@ -54,7 +54,7 @@ type CallbackCanceler struct {
 }
 
 func (canceler CallbackCanceler) Cancel() {
-	// TODO
+	canceler.reactor.RemoveCallBack(canceler.cellId, canceler.callbackId)
 }
 
 func (cell ComputeCell2) Value() int {
@@ -91,6 +91,16 @@ func (r *CellsReactor) AddCallback(cellId int, fn callback) Canceler {
 	callbackId := len(m)
 	m[callbackId] = fn
 	return CallbackCanceler{cellId: cellId, callbackId: callbackId, reactor: r}
+}
+
+func (r *CellsReactor) RemoveCallBack(cellID, callbackId int) {
+	m := r.callbacks[cellID]
+	delete(m, callbackId)
+	if len(m) == 0 {
+		delete(r.callbacks, cellID)
+	} else {
+		r.callbacks[cellID] = m
+	}
 }
 
 func (r *CellsReactor) GetValue(id int) int {

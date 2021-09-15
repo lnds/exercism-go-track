@@ -149,9 +149,6 @@ func TestOnlyCallOnChanges(t *testing.T) {
 	}
 }
 
-/*
-
-
 // Callbacks can be added and removed.
 func TestCallbackAddRemove(t *testing.T) {
 	r := New()
@@ -266,4 +263,3 @@ func TestNoCallOnDepChangesResultingInNoChange(t *testing.T) {
 		t.Fatalf("callback function called even though computed value didn't change")
 	}
 }
-*/
