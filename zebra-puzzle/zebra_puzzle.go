@@ -91,15 +91,16 @@ func SolvePuzzle() (solution Solution) {
 
 	// by 9: Milk is drunk in the middle house.
 	beverages := [][]int{}
-	for _, b := range permutations([]int{coffee, tea, orangejuice, water}) {
-		beverages = append(beverages, []int{b[0], b[1], milk, b[2], b[3]})
+	for _, b := range permutations([]int{tea, orangejuice, water}) {
+		// by 4: Coffee is drunk in the green house.
+		beverages = append(beverages, []int{b[0], b[1], milk, coffee, b[2]})
+		beverages = append(beverages, []int{b[0], b[1], milk, b[2], coffee})
 	}
 
 	// by 8: Kools are smoked in the yellow house.
 	smokes := [][]int{}
 	for _, s := range permutations([]int{oldgold, chesterfields, luckystrike, parliaments}) {
-		ss := append([]int{kools}, s...)
-		smokes = append(smokes, ss)
+		smokes = append(smokes, []int{kools, s[0], s[1], s[2], s[3]})
 	}
 
 	// by 12: Kools are smoked in the house next to the house where the horse is kept.
@@ -109,21 +110,16 @@ func SolvePuzzle() (solution Solution) {
 	}
 
 	solution = Solution{DrinksWater: "", OwnsZebra: ""}
-	iters := 0
 	for _, c := range colors {
 		for _, r := range residents {
 			for _, b := range beverages {
 				for _, s := range smokes {
 					for _, p := range pets {
-						houses := buildHouses(c, r, b, s, p)
-						solution.DrinksWater = findResident(houses, beverage, water)
-						solution.OwnsZebra = findResident(houses, pet, zebra)
-						iters++
-						if !c11(houses) || !any(houses, c2) || !any(houses, c3) || !any(houses, c4) ||
-							!any(houses, c5) || !any(houses, c7) || !any(houses, c8) || !any(houses, c13) || !any(houses, c14) {
-							continue
+						if houses, ok := buildHouses(c, r, b, s, p); ok {
+							solution.DrinksWater = findResident(houses, beverage, water)
+							solution.OwnsZebra = findResident(houses, pet, zebra)
+							return
 						}
-						return
 					}
 				}
 			}
@@ -132,54 +128,49 @@ func SolvePuzzle() (solution Solution) {
 	return
 }
 
-func buildHouses(colors, residents, beverages, smokes, pets []int) Houses {
+func buildHouses(colors, residents, beverages, smokes, pets []int) (Houses, bool) {
 	houses := Houses{}
 	for i := first; i <= fifth; i++ {
+		// by 3: The Spaniard owns the dog.
+		if residents[i] == spaniard && pets[i] != dog {
+			return houses, false
+		}
+		// by 5: The Ukrainian drinks tea.
+		if residents[i] == ukrainian && beverages[i] != tea {
+			return houses, false
+		}
+		// by 7: The Old Gold smoker owns snails.
+		if smokes[i] == oldgold && pets[i] != snails {
+			return houses, false
+		}
+		// by 13: The Lucky Strike smoker drinks orange juice.
+		if smokes[i] == luckystrike && beverages[i] != orangejuice {
+			return houses, false
+		}
+		// by 14: The Japanese smokes Parliaments.
+		if residents[i] == japanese && smokes[i] != parliaments {
+			return houses, false
+		}
+		// by 11: The man who smokes Chesterfields lives in the house next to the man with the fox.
+		if smokes[i] == chesterfields {
+			if i == 0 && pets[i+1] != fox {
+				return houses, false
+			}
+			if i == 5 && pets[i-1] != fox {
+				return houses, false
+			}
+			if pets[i-1] != fox && pets[i+1] == fox {
+				return houses, false
+			}
+		}
 		houses[i][color] = colors[i]
 		houses[i][resident] = residents[i]
 		houses[i][beverage] = beverages[i]
 		houses[i][smoke] = smokes[i]
 		houses[i][pet] = pets[i]
 	}
-	return houses
+	return houses, true
 }
-
-type Constraint [2]int // (atrribute, value)
-
-func constraint(attribute1, value1, atrribute2, value2 int) [2]Constraint {
-	return [2]Constraint{
-		{attribute1, value1},
-		{atrribute2, value2},
-	}
-}
-
-// returns true if house satisfies all constraint
-func satisfies(house House, constraints [2]Constraint) bool {
-	atrribute1 := constraints[0][0]
-	value1 := constraints[0][1]
-	atrribute2 := constraints[1][0]
-	value2 := constraints[1][1]
-	return house[atrribute1] == value1 && house[atrribute2] == value2
-}
-
-// returns true if any house satisfies given constraints
-func any(houses Houses, constraints [2]Constraint) bool {
-	for _, house := range houses {
-		if satisfies(house, constraints) {
-			return true
-		}
-	}
-	return false
-}
-
-var c2 = constraint(resident, englishman, color, red)           // 2
-var c3 = constraint(resident, spaniard, pet, dog)               // 3
-var c4 = constraint(beverage, coffee, color, green)             // 4
-var c5 = constraint(resident, ukrainian, beverage, tea)         // 5
-var c7 = constraint(smoke, oldgold, pet, snails)                // 7
-var c8 = constraint(smoke, kools, color, yellow)                // 8
-var c13 = constraint(smoke, luckystrike, beverage, orangejuice) // 13
-var c14 = constraint(resident, japanese, smoke, parliaments)    // 14
 
 func findResident(houses Houses, attribute, value int) string {
 	for _, house := range houses {
@@ -188,24 +179,6 @@ func findResident(houses Houses, attribute, value int) string {
 		}
 	}
 	return ""
-}
-
-// The man who smokes Chesterfields lives in the house next to the man with the fox.
-func c11(houses Houses) bool {
-	if houses[first][smoke] == chesterfields && houses[second][pet] == fox {
-		return true
-	}
-	if houses[fifth][smoke] == chesterfields && houses[fourth][pet] == fox {
-		return true
-	}
-	for i := second; i < fifth; i++ {
-		if houses[i][smoke] == chesterfields {
-			if houses[i-1][pet] == fox || houses[i+1][pet] == fox {
-				return true
-			}
-		}
-	}
-	return false
 }
 
 func permutations(arr []int) [][]int {
