@@ -1,7 +1,5 @@
 package robot
 
-import "fmt"
-
 const (
 	N Dir = iota
 	E
@@ -124,32 +122,120 @@ func StartRobot(commands chan Command, actions chan Action) {
 	close(actions)
 }
 
-func (r Step2Robot) String() string {
-	return fmt.Sprintf("robot {Dir=%s, pos=%v}", r.Dir, r.Pos)
-}
-
 func Room(limits Rect, robot Step2Robot, actions chan Action, report chan Step2Robot) {
 	robot.Pos = limits.Min
 	robot.Dir = N
 	for action := range actions {
-		fmt.Printf("action %v\n", action)
-		fmt.Printf("robot in = %+v\n", robot)
-		robot = checkPos(limits, action(robot))
-		fmt.Printf("robot out = %+v\n\n", robot)
+		robot = action(robot)
+		robot.Pos, _ = checkPos(limits, robot.Pos)
 	}
 	report <- robot
 }
 
-func checkPos(limits Rect, robot Step2Robot) Step2Robot {
-	if robot.Pos.Northing < limits.Min.Northing {
-		robot.Pos.Northing = limits.Min.Northing
-	} else if robot.Pos.Northing > limits.Max.Northing {
-		robot.Pos.Northing = limits.Max.Northing
+type Action3 struct {
+	Stop  bool
+	Robot string
+	Action
+}
+
+func StartRobot3(robotName string, script string, actions chan Action3, log chan string) {
+	for _, cmd := range script {
+		switch cmd {
+		case 'A':
+			actions <- Action3{Robot: robotName, Action: Advance2}
+		case 'L':
+			actions <- Action3{Robot: robotName, Action: Left2}
+		case 'R':
+			actions <- Action3{Robot: robotName, Action: Right2}
+		default:
+			log <- "An undefined command in a script"
+			actions <- Action3{Stop: true, Robot: robotName}
+			return
+		}
 	}
-	if robot.Pos.Easting < limits.Min.Easting {
-		robot.Pos.Easting = limits.Min.Easting
-	} else if robot.Pos.Easting > limits.Max.Easting {
-		robot.Pos.Easting = limits.Max.Easting
+	actions <- Action3{Stop: true, Robot: robotName}
+}
+
+func Room3(limits Rect, robots []Step3Robot, actions chan Action3, report chan []Step3Robot, log chan string) {
+	robotMap := map[string]Step2Robot{}
+	for _, robot := range robots {
+		if robot.Name == "" {
+			log <- "Robot without name"
+			report <- robots
+			return
+		}
+		if _, bump := checkPos(limits, robot.Step2Robot.Pos); bump {
+			log <- "A robot placed outside of the room"
+			report <- robots
+			return
+		}
+		if _, ok := robotMap[robot.Name]; ok {
+			log <- "Duplicated robot name"
+			report <- robots
+			return
+		}
+		if checkCollide(robot.Name, robot.Step2Robot, robotMap) {
+			log <- "Robots placed at the same place"
+			report <- robots
+			return
+		}
+		robotMap[robot.Name] = robot.Step2Robot
 	}
-	return robot
+
+	robotCount := len(robotMap)
+	robots = []Step3Robot{}
+	for len(robots) < robotCount {
+		action := <-actions
+		robot, ok := robotMap[action.Robot]
+		if !ok {
+			log <- "An action from an unknown robot"
+			break
+		}
+		if action.Stop {
+			robots = append(robots, Step3Robot{Name: action.Robot, Step2Robot: robot})
+			continue
+		}
+		bump := false
+		pos := robot.Pos
+		robot = action.Action(robot)
+		if checkCollide(action.Robot, robot, robotMap) {
+			log <- "A robot attempting to advance into another robot"
+		} else {
+			pos, bump = checkPos(limits, robot.Pos)
+			if bump {
+				log <- "A robot attempting to advance into a wall"
+			}
+		}
+		robot.Pos = pos
+		robotMap[action.Robot] = robot
+	}
+	report <- robots
+}
+
+func checkCollide(robotName string, robot Step2Robot, robots map[string]Step2Robot) bool {
+	for name, otherRobot := range robots {
+		if name != robotName && robot.Pos == otherRobot.Pos {
+			return true
+		}
+	}
+	return false
+}
+
+func checkPos(limits Rect, pos Pos) (Pos, bool) {
+	bump := false
+	if pos.Northing < limits.Min.Northing {
+		pos.Northing = limits.Min.Northing
+		bump = true
+	} else if pos.Northing > limits.Max.Northing {
+		pos.Northing = limits.Max.Northing
+		bump = true
+	}
+	if pos.Easting < limits.Min.Easting {
+		pos.Easting = limits.Min.Easting
+		bump = true
+	} else if pos.Easting > limits.Max.Easting {
+		pos.Easting = limits.Max.Easting
+		bump = true
+	}
+	return pos, bump
 }
