@@ -11,49 +11,70 @@ func Solve(expression string) (map[string]int, error) {
 		return nil, err
 	}
 
+	values := map[rune]int{}
+	letters := []rune{}
 	signs := strings.Join(summands, "") + sum
-
-	digits := intSlice{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
-	values := newValues(signs)
-	var generate func(int, intSlice) (map[string]int, error)
-	generate = func(n int, guess intSlice) (map[string]int, error) {
-		if n == 1 {
-			A := guess.Copy()
-			i := 0
-			for r := range values {
-				values[r] = A[i]
-				i++
-			}
-			if check(summands, sum, values) {
-				return values, nil
-			}
-		} else {
-			for i := 0; i < n; i++ {
-				v, e := generate(n-1, guess)
-				if e == nil {
-					return v, e
-				}
-				if n%2 == 0 {
-					guess.Swap(i, n-1)
-				} else {
-					guess.Swap(0, n-1)
-				}
-			}
+	for _, letter := range signs {
+		if _, exists := values[letter]; !exists {
+			values[letter] = 0
+			letters = append(letters, letter)
 		}
-		return nil, fmt.Errorf("not found")
-
 	}
-	return generate(digits.Len(), digits)
+	if len(letters) > 10 {
+		return nil, fmt.Errorf("only 10 letters")
+	}
+
+	digits := [10]int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
+
+	// check first combination
+	assignValues(letters, digits, values)
+	if check(summands, sum, values) {
+		return transform(values), nil
+	}
+
+	// calc permutations, using Heap algorithm
+	i := 0
+	c := [10]int{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+	for i < 10 {
+		if c[i] >= i {
+			c[i] = 0
+			i++
+		} else {
+			if i%2 == 0 {
+				digits[0], digits[i] = digits[i], digits[0]
+			} else {
+				digits[c[i]], digits[i] = digits[i], digits[c[i]]
+			}
+			assignValues(letters, digits, values)
+			if check(summands, sum, values) {
+				return transform(values), nil
+			}
+			c[i]++
+			i = 0
+		}
+	}
+	return nil, fmt.Errorf("not found")
 }
 
-func newValues(signs string) map[string]int {
-	values := map[string]int{}
-	for _, r := range signs {
-		values[string(r)] = 0
+// transform to expected result format
+func transform(values map[rune]int) map[string]int {
+	result := map[string]int{}
+	for k, v := range values {
+		result[string(k)] = v
 	}
-	return values
+	return result
 }
 
+// asigns guessed digits to map of values
+func assignValues(letters []rune, digits [10]int, values map[rune]int) {
+	i := 0
+	for _, letter := range letters {
+		values[letter] = digits[i]
+		i++
+	}
+}
+
+// parse the input
 func parse(input string) (sumands []string, sum string, err error) {
 	parts := strings.Split(input, "==")
 	if len(parts) != 2 {
@@ -68,50 +89,32 @@ func parse(input string) (sumands []string, sum string, err error) {
 	return
 }
 
-func check(summands []string, sum string, digits map[string]int) bool {
+// check equation, using map of runes->int
+func check(summands []string, sum string, digits map[rune]int) bool {
 	left := 0
 	for _, s := range summands {
-		if v, ok := value(s, digits); !ok {
+		v := value(s, digits)
+		if v == 0 {
 			return false
-		} else {
-			left += v
 		}
+		left += v
 	}
-	if right, ok := value(sum, digits); !ok {
-		return false
-	} else {
-		return left == right
-	}
+	right := value(sum, digits)
+	return left == right
 }
 
-func value(num string, digits map[string]int) (int, bool) {
+// convert a string to a number
+func value(num string, digits map[rune]int) int {
 	if num == "" {
-		return 0, false
+		return 0
 	}
 	acc := 0
 	for i, c := range num {
-		if digit, ok := digits[string(c)]; !ok {
-			return 0, false
-		} else {
-			if i == 0 && digit == 0 {
-				return 0, false
-			}
-			if i == 0 {
-				acc = digit
-			} else {
-				acc = acc*10 + digit
-			}
+		digit, ok := digits[c]
+		if !ok || (i == 0 && digit == 0) {
+			return 0
 		}
+		acc = acc*10 + digit
 	}
-	return acc, true
-}
-
-type intSlice []int
-
-func (p intSlice) Len() int      { return len(p) }
-func (p intSlice) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
-func (p intSlice) Copy() intSlice {
-	A := make(intSlice, p.Len())
-	copy(A, p)
-	return A
+	return acc
 }
